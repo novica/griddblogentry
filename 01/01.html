@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.2.269">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Novica Nakov">
+<meta name="dcterms.date" content="2023-01-25">
+
+<title>Ingest and query gene expression data in R with GridDB</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1.6em;
+  vertical-align: middle;
+}
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { color: #008000; } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { color: #008000; font-weight: bold; } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+</style>
+
+
+<script src="01_files/libs/clipboard/clipboard.min.js"></script>
+<script src="01_files/libs/quarto-html/quarto.js"></script>
+<script src="01_files/libs/quarto-html/popper.min.js"></script>
+<script src="01_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="01_files/libs/quarto-html/anchor.min.js"></script>
+<link href="01_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="01_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="01_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="01_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="01_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body>
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction"><span class="toc-section-number">1</span>  Introduction</a></li>
+  <li><a href="#prerequisites" id="toc-prerequisites" class="nav-link" data-scroll-target="#prerequisites"><span class="toc-section-number">2</span>  Prerequisites</a>
+  <ul class="collapse">
+  <li><a href="#installing-and-starting-griddb" id="toc-installing-and-starting-griddb" class="nav-link" data-scroll-target="#installing-and-starting-griddb"><span class="toc-section-number">2.1</span>  Installing and starting <code>GridDB</code></a></li>
+  <li><a href="#installing-r-dependencies" id="toc-installing-r-dependencies" class="nav-link" data-scroll-target="#installing-r-dependencies"><span class="toc-section-number">2.2</span>  Installing <code>R</code> dependencies</a></li>
+  </ul></li>
+  <li><a href="#connecting-r-to-a-local-griddb-cluster" id="toc-connecting-r-to-a-local-griddb-cluster" class="nav-link" data-scroll-target="#connecting-r-to-a-local-griddb-cluster"><span class="toc-section-number">3</span>  Connecting <code>R</code> to a local <code>GridDB</code> cluster</a></li>
+  <li><a href="#data" id="toc-data" class="nav-link" data-scroll-target="#data"><span class="toc-section-number">4</span>  Data</a></li>
+  <li><a href="#loading-our-data-into-griddb" id="toc-loading-our-data-into-griddb" class="nav-link" data-scroll-target="#loading-our-data-into-griddb"><span class="toc-section-number">5</span>  Loading our data into <code>GridDB</code></a></li>
+  <li><a href="#data-analysis" id="toc-data-analysis" class="nav-link" data-scroll-target="#data-analysis"><span class="toc-section-number">6</span>  Data analysis</a>
+  <ul class="collapse">
+  <li><a href="#genes-per-cancer-dataset-that-have-average-expression-2000" id="toc-genes-per-cancer-dataset-that-have-average-expression-2000" class="nav-link" data-scroll-target="#genes-per-cancer-dataset-that-have-average-expression-2000"><span class="toc-section-number">6.1</span>  Genes per cancer dataset that have average expression &gt; 2000</a></li>
+  <li><a href="#genes-per-cancer-dataset-that-have-average-expression-300" id="toc-genes-per-cancer-dataset-that-have-average-expression-300" class="nav-link" data-scroll-target="#genes-per-cancer-dataset-that-have-average-expression-300"><span class="toc-section-number">6.2</span>  Genes per cancer dataset that have average expression &lt; 300</a></li>
+  <li><a href="#genes-shared-among-all-cancers" id="toc-genes-shared-among-all-cancers" class="nav-link" data-scroll-target="#genes-shared-among-all-cancers"><span class="toc-section-number">6.3</span>  Genes shared among all cancers</a></li>
+  <li><a href="#median-expression-per-cancer-data-set-of-the-first-10-genes-shared-for-all-datasets" id="toc-median-expression-per-cancer-data-set-of-the-first-10-genes-shared-for-all-datasets" class="nav-link" data-scroll-target="#median-expression-per-cancer-data-set-of-the-first-10-genes-shared-for-all-datasets"><span class="toc-section-number">6.4</span>  Median expression per cancer data set of the first 10 genes shared for all datasets</a></li>
+  </ul></li>
+  <li><a href="#clean-up" id="toc-clean-up" class="nav-link" data-scroll-target="#clean-up"><span class="toc-section-number">7</span>  Clean up</a></li>
+  <li><a href="#conclusion" id="toc-conclusion" class="nav-link" data-scroll-target="#conclusion"><span class="toc-section-number">8</span>  Conclusion</a></li>
+  <li><a href="#appendix" id="toc-appendix" class="nav-link" data-scroll-target="#appendix"><span class="toc-section-number">9</span>  Appendix</a></li>
+  <li><a href="#session-info" id="toc-session-info" class="nav-link" data-scroll-target="#session-info"><span class="toc-section-number">10</span>  Session info</a></li>
+  </ul>
+</nav>
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Ingest and query gene expression data in <code>R</code> with <code>GridDB</code></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Novica Nakov </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">January 25, 2023</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+</header>
+
+<section id="introduction" class="level2" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="introduction"><span class="header-section-number">1</span> Introduction</h2>
+<p>In this document, we’ll first go over some notes about setting up <code>GridDB</code> and connecting to it from <code>R</code>. Then, we’ll ingest some gene expression data from The Cancer Genome Atlas (TCGA), and query the <code>GridDB</code> backend using <code>dplyr</code> to generate simple summary statistics.</p>
+</section>
+<section id="prerequisites" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="prerequisites"><span class="header-section-number">2</span> Prerequisites</h2>
+<section id="installing-and-starting-griddb" class="level3" data-number="2.1">
+<h3 data-number="2.1" class="anchored" data-anchor-id="installing-and-starting-griddb"><span class="header-section-number">2.1</span> Installing and starting <code>GridDB</code></h3>
+<p>To install <code>GridDB</code> we simply follow the instructions provided in the <a href="https://docs.griddb.net/latest/gettingstarted/using-apt/">documentation</a>. On an Ubuntu machine, the easiest is to download the <code>deb</code> package and install with <code>dpkg -i</code>. Thereafter, we need to start the <code>GridDB</code> service with <code>sudo systemctl start gridstore</code>. After this, we are ready to connect to the service from <code>R</code> in order to load and query data.</p>
+</section>
+<section id="installing-r-dependencies" class="level3" data-number="2.2">
+<h3 data-number="2.2" class="anchored" data-anchor-id="installing-r-dependencies"><span class="header-section-number">2.2</span> Installing <code>R</code> dependencies</h3>
+<p>Running the code below would require installation (if not already available) of several <code>R</code> packages. Below, I am using the <code>attachment</code> package to detect the dependencies used by this Quarto markdown document.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>attachment<span class="sc">::</span><span class="fu">att_from_qmd</span>(<span class="st">"01.qmd"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "RJDBC"           "DBI"             "dplyr"           "tidyr"          
+ [5] "purrr"           "qs"              "GSEABenchmarkeR" "attachment"     
+ [9] "knitr"           "pbapply"         "tibble"         </code></pre>
+</div>
+</div>
+<p>One can install these dependencies via the usual <code>install.packages</code> method, except for <code>Bioconductor</code> packages that would require <code>BiocManager::install</code>:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>deps <span class="ot">&lt;-</span> attachment<span class="sc">::</span><span class="fu">att_from_qmd</span>(<span class="st">"01.qmd"</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">install.packages</span>(deps)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>or, in an <code>Ubuntu</code> environment (as it might be the case in a cloud setup), a faster approach might be to get pre-compiled versions using <code>Ubuntu</code>’s package manager:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># replace `PKG1/2/3` with the required package names</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt install r-cran-PKG1 r-cran-PKG2 r-cran-PKG3 ...</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="connecting-r-to-a-local-griddb-cluster" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="connecting-r-to-a-local-griddb-cluster"><span class="header-section-number">3</span> Connecting <code>R</code> to a local <code>GridDB</code> cluster</h2>
+<p>As documented <a href="https://griddb.net/en/blog/analysis-of-the-swisslos-lottery-using-r-and-griddb/">previously</a>, we’ll use the <code>RJDBC</code> package (Java database connectivity) to connect to the <code>griddb</code> cluster. As the cluster is running locally (as would be the case if you followed the installation and getting started <a href="https://docs.griddb.net/latest/gettingstarted/using-apt/#install-with-deb">guide</a>), be sure to use the localhost IP address (<code>127.0.0.1</code>) and the port <code>20001</code>.</p>
+<p>For ease of use down the line, we can wrap these two steps, creating a <code>jdbc</code> driver and a <code>griddb</code> connection, in a function called <code>connect_to_griddb</code>. Note that we are loading the entire namespaces of <code>RJDBC</code> and <code>DBI</code>, which might be OK for an exploratory interactive session, but for more serious projects, we’d of course create an <code>R</code> package and import only the needed functions explicitly with <code>importFrom</code> or use an approach such as <a href="https://github.com/klmr/box"><code>box</code></a> to create modules with specific imports.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">suppressPackageStartupMessages</span>({</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">library</span>(RJDBC)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">library</span>(DBI)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">library</span>(dplyr)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">library</span>(tidyr)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">library</span>(purrr)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">library</span>(qs)</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>connect_to_griddb <span class="ot">&lt;-</span> <span class="cf">function</span>() {</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  drv <span class="ot">&lt;-</span> <span class="fu">JDBC</span>(<span class="at">driverClass =</span> <span class="st">"com.toshiba.mwcloud.gs.sql.Driver"</span>,</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>              <span class="co"># Point this to your gridstore jar</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>              <span class="at">classPath =</span> <span class="st">"~/src/jdbc/bin/gridstore-jdbc.jar"</span>)</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  conn <span class="ot">&lt;-</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">dbConnect</span>(drv,</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>              <span class="st">"jdbc:gs://127.0.0.1:20001/myCluster/public"</span>,</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>              <span class="st">"admin"</span>,</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>              <span class="st">"admin"</span>)</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(conn)</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="data" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="data"><span class="header-section-number">4</span> Data</h2>
+<p>We’ll work with some gene expression data from human cancer studies as published by The Cancer Genome Atlas (TCGA) <a href="https://www.cancer.gov/about-nci/organization/ccg/research/structural-genomics/tcga">program</a>. In particular, we’ll focus on data packaged by the Bioconductor package <a href="https://bioconductor.org/packages/devel/bioc/vignettes/GSEABenchmarkeR/inst/doc/GSEABenchmarkeR.html#setup"><code>GSEABenchmarkeR</code></a> and intended to use for benchmarking gene-expression studies. The data were downloaded, pre-formatted into rectangular sets and saved as a <a href="https://github.com/traversc/qs"><code>qs</code></a> archive for faster saving and loading.</p>
+<p>A quick peak at the data sets:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>TCGA <span class="ot">&lt;-</span> qs<span class="sc">::</span><span class="fu">qread</span>(<span class="st">"data/expressions.qs"</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sapply</span>(TCGA, nrow) <span class="sc">|&gt;</span> <span class="fu">summary</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ 460712  840504 1033988 1220327 1391706 2806694 </code></pre>
+</div>
+</div>
+<p>We have expression data for 10 cancers, with a mean of 1.2M observations (rows). Each data set has 5 columns,</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>TCGA[[<span class="dv">1</span>]] <span class="sc">|&gt;</span> <span class="fu">head</span>() <span class="sc">|&gt;</span> knitr<span class="sc">::</span><span class="fu">kable</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped">
+<colgroup>
+<col style="width: 5%">
+<col style="width: 41%">
+<col style="width: 12%">
+<col style="width: 5%">
+<col style="width: 34%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Gene</th>
+<th style="text-align: left;">Sample</th>
+<th style="text-align: right;">Expression</th>
+<th style="text-align: left;">Code</th>
+<th style="text-align: left;">Cancer</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">A2M</td>
+<td style="text-align: left;">exprs.TCGA.K4.A3WV.01A.11R.A22U.07</td>
+<td style="text-align: right;">2133</td>
+<td style="text-align: left;">BLCA</td>
+<td style="text-align: left;">Bladder Urothelial Carcinoma</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">A2M</td>
+<td style="text-align: left;">exprs.TCGA.BT.A20W.01A.21R.A14Y.07</td>
+<td style="text-align: right;">26508</td>
+<td style="text-align: left;">BLCA</td>
+<td style="text-align: left;">Bladder Urothelial Carcinoma</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">A2M</td>
+<td style="text-align: left;">exprs.TCGA.K4.A5RI.01A.11R.A28M.07</td>
+<td style="text-align: right;">18641</td>
+<td style="text-align: left;">BLCA</td>
+<td style="text-align: left;">Bladder Urothelial Carcinoma</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">A2M</td>
+<td style="text-align: left;">exprs.TCGA.BT.A20N.01A.11R.A14Y.07</td>
+<td style="text-align: right;">3828</td>
+<td style="text-align: left;">BLCA</td>
+<td style="text-align: left;">Bladder Urothelial Carcinoma</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">A2M</td>
+<td style="text-align: left;">exprs.TCGA.BL.A13J.01A.11R.A277.07</td>
+<td style="text-align: right;">23443</td>
+<td style="text-align: left;">BLCA</td>
+<td style="text-align: left;">Bladder Urothelial Carcinoma</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">A2M</td>
+<td style="text-align: left;">exprs.TCGA.BT.A20U.01A.11R.A14Y.07</td>
+<td style="text-align: right;">4532</td>
+<td style="text-align: left;">BLCA</td>
+<td style="text-align: left;">Bladder Urothelial Carcinoma</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>and the represented cancers are</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sapply</span>(TCGA, <span class="st">"[["</span>, <span class="dv">1</span>, <span class="dv">5</span>) <span class="sc">|&gt;</span> <span class="fu">unlist</span>() <span class="sc">|&gt;</span> knitr<span class="sc">::</span><span class="fu">kable</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped">
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: left;">x</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">BLCA</td>
+<td style="text-align: left;">Bladder Urothelial Carcinoma</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">BRCA</td>
+<td style="text-align: left;">Breast Invasive Carcinoma</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">COAD</td>
+<td style="text-align: left;">Colon Adenocarcinoma</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">HNSC</td>
+<td style="text-align: left;">Head and Neck Squamous Cell Carcinoma</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">KICH</td>
+<td style="text-align: left;">Kidney Chromophobe</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">KIRC</td>
+<td style="text-align: left;">Kidney Renal Clear Cell Carcinoma</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">KIRP</td>
+<td style="text-align: left;">Kidney Renal Papillary Cell Carcinoma</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">LIHC</td>
+<td style="text-align: left;">Liver Hepatocellular Carcinoma</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">LUAD</td>
+<td style="text-align: left;">Lung Adenocarcinoma</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">LUSC</td>
+<td style="text-align: left;">Lung Squamous Cell Carcinoma</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="loading-our-data-into-griddb" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="loading-our-data-into-griddb"><span class="header-section-number">5</span> Loading our data into <code>GridDB</code></h2>
+<p>To ingest the data, we first create a connection to the <code>GridDB</code> cluster using our function defined above. Then, we define two functions, one to create a table and another to insert data into the table. These functions will allow us to cycle over a list of data frames and load each data frame into the database seamlessly with base <code>R</code>’s <code>*apply</code> family of functions or <code>purrr</code>’s <code>map_*</code> family of functions.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>griddb <span class="ot">&lt;-</span> <span class="fu">connect_to_griddb</span>()</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>create_table <span class="ot">&lt;-</span> <span class="cf">function</span>(table_name) {</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">dbSendUpdate</span>(</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    griddb,</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sprintf</span>(</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>      <span class="st">"CREATE TABLE IF NOT EXISTS %s (Gene STRING, Sample STRING, Expression INTEGER, Code STRING, Name STRING);"</span>,</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>      table_name</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>insert_table <span class="ot">&lt;-</span> <span class="cf">function</span>(conn, name, df, <span class="at">append =</span> <span class="cn">TRUE</span>) {</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_len</span>(<span class="fu">nrow</span>(df))) {</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">dbWriteTable</span>(conn, name, df[i, ], <span class="at">append =</span> append)</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a><span class="co"># using `invisible` here to hide non-informative output</span></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="fu">invisible</span>(<span class="fu">lapply</span>(<span class="fu">names</span>(TCGA), create_table))</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>DBI<span class="sc">::</span><span class="fu">dbListTables</span>(griddb)</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a><span class="co"># 6 minutes for 10K rows per table. So 6 min for 100K rows</span></span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a><span class="co"># 1h for 100K rows per table. So 1h for 1M rows.</span></span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a><span class="fu">invisible</span>(pbapply<span class="sc">::</span><span class="fu">pblapply</span>(<span class="fu">seq_along</span>(TCGA), <span class="cf">function</span>(i)</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">insert_table</span>(</span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">conn =</span> griddb,</span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="fu">names</span>(TCGA)[[i]],</span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">df =</span> TCGA[[i]][<span class="dv">1</span><span class="sc">:</span><span class="dv">100000</span>, ],</span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>    <span class="at">append =</span> <span class="cn">TRUE</span></span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>  ))</span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>DBI<span class="sc">::</span><span class="fu">dbDisconnect</span>(griddb)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>griddb <span class="ot">&lt;-</span> <span class="fu">connect_to_griddb</span>()</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>iter <span class="ot">&lt;-</span> <span class="fu">setNames</span>(<span class="fu">names</span>(TCGA), <span class="fu">names</span>(TCGA))</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="fu">map_dfr</span>(iter, <span class="cf">function</span>(x) {</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  griddb <span class="sc">|&gt;</span> <span class="fu">tbl</span>(x) <span class="sc">|&gt;</span> <span class="fu">collect</span>() <span class="sc">|&gt;</span> <span class="fu">nrow</span>()</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>}) <span class="sc">|&gt;</span> knitr<span class="sc">::</span><span class="fu">kable</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped">
+<thead>
+<tr class="header">
+<th style="text-align: right;">BLCA</th>
+<th style="text-align: right;">BRCA</th>
+<th style="text-align: right;">COAD</th>
+<th style="text-align: right;">HNSC</th>
+<th style="text-align: right;">KICH</th>
+<th style="text-align: right;">KIRC</th>
+<th style="text-align: right;">KIRP</th>
+<th style="text-align: right;">LIHC</th>
+<th style="text-align: right;">LUAD</th>
+<th style="text-align: right;">LUSC</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">1e+05</td>
+<td style="text-align: right;">1e+05</td>
+<td style="text-align: right;">1e+05</td>
+<td style="text-align: right;">1e+05</td>
+<td style="text-align: right;">1e+05</td>
+<td style="text-align: right;">1e+05</td>
+<td style="text-align: right;">1e+05</td>
+<td style="text-align: right;">1e+05</td>
+<td style="text-align: right;">1e+05</td>
+<td style="text-align: right;">1e+05</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="data-analysis" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="data-analysis"><span class="header-section-number">6</span> Data analysis</h2>
+<p>Some summary simple stats. Nothing biologically meaningful at this point.</p>
+<section id="genes-per-cancer-dataset-that-have-average-expression-2000" class="level3" data-number="6.1">
+<h3 data-number="6.1" class="anchored" data-anchor-id="genes-per-cancer-dataset-that-have-average-expression-2000"><span class="header-section-number">6.1</span> Genes per cancer dataset that have average expression &gt; 2000</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>high_expression_genes <span class="ot">&lt;-</span> purrr<span class="sc">::</span><span class="fu">map_dfr</span>(iter, <span class="at">.id =</span> <span class="st">"Cancer"</span>, </span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="cf">function</span>(x) {</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    griddb <span class="sc">|&gt;</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>      <span class="fu">tbl</span>(x) <span class="sc">|&gt;</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>      <span class="fu">group_by</span>(Gene) <span class="sc">|&gt;</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>      <span class="fu">summarise</span>(<span class="at">Mean_expression =</span> <span class="fu">mean</span>(Expression, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>      <span class="fu">filter</span>(Mean_expression <span class="sc">&gt;=</span> <span class="dv">2000</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>      <span class="fu">collect</span>()</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(high_expression_genes)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 5671    3</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(high_expression_genes) <span class="sc">|&gt;</span> knitr<span class="sc">::</span><span class="fu">kable</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Cancer</th>
+<th style="text-align: left;">Gene</th>
+<th style="text-align: right;">Mean_expression</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">BLCA</td>
+<td style="text-align: left;">ATP13A1</td>
+<td style="text-align: right;">3982.579</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">BLCA</td>
+<td style="text-align: left;">AHDC1</td>
+<td style="text-align: right;">2264.658</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">BLCA</td>
+<td style="text-align: left;">ASAP1</td>
+<td style="text-align: right;">2382.974</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">BLCA</td>
+<td style="text-align: left;">CYP4B1</td>
+<td style="text-align: right;">11235.737</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">BLCA</td>
+<td style="text-align: left;">CA12</td>
+<td style="text-align: right;">5659.211</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">BLCA</td>
+<td style="text-align: left;">ASAP2</td>
+<td style="text-align: right;">2578.526</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="genes-per-cancer-dataset-that-have-average-expression-300" class="level3" data-number="6.2">
+<h3 data-number="6.2" class="anchored" data-anchor-id="genes-per-cancer-dataset-that-have-average-expression-300"><span class="header-section-number">6.2</span> Genes per cancer dataset that have average expression &lt; 300</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>low_expression_genes <span class="ot">&lt;-</span> purrr<span class="sc">::</span><span class="fu">map_dfr</span>(iter, <span class="at">.id =</span> <span class="st">"Cancer"</span>,</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>  <span class="cf">function</span>(x) {</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>    griddb <span class="sc">|&gt;</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>      <span class="fu">tbl</span>(x) <span class="sc">|&gt;</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>      <span class="fu">group_by</span>(Gene) <span class="sc">|&gt;</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>      <span class="fu">summarise</span>(<span class="at">Mean_expression =</span> <span class="fu">mean</span>(Expression, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>      <span class="fu">filter</span>(Mean_expression <span class="sc">&lt;=</span> <span class="dv">300</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>      <span class="fu">collect</span>() </span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(low_expression_genes)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 1179    3</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tail</span>(low_expression_genes) <span class="sc">|&gt;</span> knitr<span class="sc">::</span><span class="fu">kable</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Cancer</th>
+<th style="text-align: left;">Gene</th>
+<th style="text-align: right;">Mean_expression</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">LUSC</td>
+<td style="text-align: left;">AGAP9</td>
+<td style="text-align: right;">130.2157</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">LUSC</td>
+<td style="text-align: left;">ACRBP</td>
+<td style="text-align: right;">207.8431</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">LUSC</td>
+<td style="text-align: left;">BATF3</td>
+<td style="text-align: right;">268.8137</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">LUSC</td>
+<td style="text-align: left;">AP3S2</td>
+<td style="text-align: right;">248.4510</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">LUSC</td>
+<td style="text-align: left;">ASPG</td>
+<td style="text-align: right;">205.7451</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">LUSC</td>
+<td style="text-align: left;">ACHE</td>
+<td style="text-align: right;">252.6471</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="genes-shared-among-all-cancers" class="level3" data-number="6.3">
+<h3 data-number="6.3" class="anchored" data-anchor-id="genes-shared-among-all-cancers"><span class="header-section-number">6.3</span> Genes shared among all cancers</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>unique_genes_per_dataset <span class="ot">&lt;-</span> purrr<span class="sc">::</span><span class="fu">map</span>(iter, </span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="cf">function</span>(x) {</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    griddb <span class="sc">|&gt;</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>      <span class="fu">tbl</span>(x) <span class="sc">|&gt;</span></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>      <span class="fu">collect</span>() <span class="sc">|&gt;</span></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>      <span class="fu">pull</span>(Gene) <span class="sc">|&gt;</span> </span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>      <span class="fu">unique</span>()</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>shared_genes <span class="ot">&lt;-</span> <span class="fu">Reduce</span>(intersect, unique_genes_per_dataset)</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>shared_genes</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>  [1] "A2M"      "A4GALT"   "AAAS"     "AACS"     "AAGAB"    "AAK1"    
+  [7] "AAMP"     "AARS2"    "AARSD1"   "AASDH"    "AASDHPPT" "AASS"    
+ [13] "AATF"     "ABAT"     "ABCA1"    "ABCA2"    "ABCA3"    "ABCA5"   
+ [19] "ABCA7"    "ABCA8"    "ABCB1"    "ABCB10"   "ABCB6"    "ABCB7"   
+ [25] "ABCB8"    "ABCC1"    "ABCC10"   "ABCC3"    "ABCC4"    "ABCC5"   
+ [31] "ABCC9"    "ABCD1"    "ABCD3"    "ABCD4"    "ABCE1"    "ABCF1"   
+ [37] "ABCF2"    "ABCF3"    "ABCG1"    "ABCG2"    "ABHD10"   "ABHD11"  
+ [43] "ABHD12"   "ABHD13"   "ABHD14A"  "ABHD14B"  "ABHD15"   "ABHD16A" 
+ [49] "ABHD16B"  "ABHD2"    "ABHD3"    "ABHD4"    "ABHD5"    "ABHD6"   
+ [55] "ABHD8"    "ABI1"     "ABI2"     "ABI3"     "ABI3BP"   "ABL1"    
+ [61] "ABL2"     "ABLIM1"   "ABLIM3"   "ABR"      "ABT1"     "ABTB1"   
+ [67] "ABTB2"    "ACAA1"    "ACAA2"    "ACACA"    "ACACB"    "ACAD10"  
+ [73] "ACAD8"    "ACAD9"    "ACADM"    "ACADS"    "ACADSB"   "ACADVL"  
+ [79] "ACAP1"    "ACAP2"    "ACAP3"    "ACAT1"    "ACAT2"    "ACBD3"   
+ [85] "ACBD4"    "ACBD5"    "ACBD6"    "ACCS"     "ACD"      "ACE"     
+ [91] "ACER3"    "ACIN1"    "ACLY"     "ACO1"     "ACO2"     "ACOT13"  
+ [97] "ACOT2"    "ACOT7"    "ACOT8"    "ACOT9"    "ACOX1"    "ACOX3"   
+[103] "ACP1"     "ACP2"     "ACP5"     "ACP6"     "ACSF2"    "ACSF3"   
+[109] "ACSL1"    "ACSL3"    "ACSL4"    "ACSL5"    "ACSS1"    "ACSS2"   
+[115] "ACTA2"    "ACTB"     "ACTG1"    "ACTL6A"   "ACTN1"    "ACTN4"   
+[121] "ACTR10"   "ACTR1A"   "ACTR1B"   "ACTR2"    "ACTR3"    "ACTR3B"  
+[127] "ACTR3C"   "ACTR5"    "ACTR6"    "ACTR8"    "ACVR1"    "ACVR1B"  
+[133] "ACVR2A"   "ACVR2B"   "ACVRL1"   "ACYP2"    "ADA"      "ADAL"    
+[139] "ADAM10"   "ADAM15"   "ADAM17"   "ADAM19"   "ADAM8"    "ADAM9"   
+[145] "ADAMTS1"  "ADAMTS17" "ADAMTS2"  "ADAMTS4"  "ADAMTS5"  "ADAMTS9" 
+[151] "ADAMTSL1" "ADAMTSL2" "ADAMTSL3" "ADAMTSL4" "ADAP1"    "ADAP2"   
+[157] "ADAR"     "ADARB1"   "ADAT1"    "ADCK1"    "ADCK2"    "ADCK5"   
+[163] "ADCY3"    "ADCY4"    "ADCY5"    "ADCY6"    "ADCY7"    "ADCY9"   
+[169] "ADD1"     "ADD3"     "ADH1B"    "ADH5"     "ADI1"     "ADIPOR1" 
+[175] "ADIPOR2"  "ADK"      "ADM"      "ADNP"     "ADNP2"    "ADO"     
+[181] "ADORA2A"  "ADPGK"    "ADPRH"    "ADRB2"    "ADRM1"    "ADSL"    
+[187] "AEBP1"    "AEBP2"    "AEN"      "AFAP1"    "AFAP1L1"  "AFAP1L2" 
+[193] "AFF1"     "AFF4"     "AFG3L1P"  "AFG3L2"   "AFMID"    "AFTPH"   
+[199] "AGA"      "AGAP1"    "AGAP3"    "AGBL5"    "AGFG1"    "AGFG2"   
+[205] "AGGF1"    "AGK"      "AGL"      "AGPAT1"   "AGPAT2"   "AGPAT3"  
+[211] "AGPAT5"   "AGPS"     "AGRN"     "AGT"      "AGTPBP1"  "AGTRAP"  
+[217] "AHCTF1"   "AHCY"     "AHCYL1"   "AHCYL2"   "AHDC1"    "AHI1"    
+[223] "AHNAK"    "AHR"      "AHSA1"    "AIDA"     "AIF1"     "AIF1L"   
+[229] "AIFM1"    "AIFM2"    "AIG1"     "AIMP1"    "AIMP2"    "AIP"     
+[235] "AJUBA"    "AK1"      "AK2"      "AK3"      "AK4"      "AKAP1"   
+[241] "AKAP10"   "AKAP11"   "AKAP12"   "AKAP13"   "AKAP17A"  "AKAP6"   
+[247] "AKAP7"    "AKAP8"    "AKAP8L"   "AKAP9"    "AKIP1"    "AKIRIN1" 
+[253] "AKIRIN2"  "AKNA"     "AKR1A1"   "AKR1B1"   "AKR1C1"   "AKR1C2"  
+[259] "AKR1C3"   "AKR7A2"   "AKR7A2P1" "AKT1"     "AKT1S1"   "AKT2"    
+[265] "AKT3"     "AKTIP"    "ALAD"     "ALAS1"    "ALCAM"    "ALDH16A1"
+[271] "ALDH18A1" "ALDH1A1"  "ALDH1A3"  "ALDH1B1"  "ALDH2"    "ALDH3A2" 
+[277] "ALDH3B1"  "ALDH4A1"  "ALDH5A1"  "ALDH6A1"  "ALDH7A1"  "ALDH9A1" 
+[283] "ALDOA"    "ALDOC"    "ALG1"     "ALG10B"   "ALG11"    "ALG12"   
+[289] "ALG13"    "ALG14"    "ALG2"     "ALG3"     "ALG5"     "ALG6"    
+[295] "ALG8"     "ALG9"     "ALKBH1"   "ALKBH2"   "ALKBH3"   "ALKBH4"  
+[301] "ALKBH5"   "ALKBH6"   "ALKBH7"   "ALKBH8"   "ALMS1"    "ALOX5"   
+[307] "ALOX5AP"  "ALPK1"    "ALPK3"    "ALPL"     "ALS2"     "ALS2CL"  
+[313] "ALYREF"   "AMACR"    "AMBRA1"   "AMD1"     "AMDHD2"   "AMFR"    
+[319] "AMIGO1"   "AMIGO2"   "AMIGO3"   "AMMECR1"  "AMMECR1L" "AMN1"    
+[325] "AMOT"     "AMOTL1"   "AMOTL2"   "AMPD2"    "AMZ2"     "AMZ2P1"  
+[331] "ANAPC1"   "ANAPC10"  "ANAPC11"  "ANAPC13"  "ANAPC16"  "ANAPC2"  
+[337] "ANAPC4"   "ANAPC5"   "ANAPC7"   "ANG"      "ANGEL1"   "ANGEL2"  
+[343] "ANGPT2"   "ANGPTL1"  "ANGPTL2" </code></pre>
+</div>
+</div>
+</section>
+<section id="median-expression-per-cancer-data-set-of-the-first-10-genes-shared-for-all-datasets" class="level3" data-number="6.4">
+<h3 data-number="6.4" class="anchored" data-anchor-id="median-expression-per-cancer-data-set-of-the-first-10-genes-shared-for-all-datasets"><span class="header-section-number">6.4</span> Median expression per cancer data set of the first 10 genes shared for all datasets</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>first10 <span class="ot">&lt;-</span> shared_genes[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>]</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>iter2 <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(iter, first10, <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>first10_expression <span class="ot">&lt;-</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>  purrr<span class="sc">::</span><span class="fu">map2_dfr</span>(iter2<span class="sc">$</span>Var1, iter2<span class="sc">$</span>Var2, <span class="cf">function</span>(.x, .y) {</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>    griddb <span class="sc">|&gt;</span></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>      <span class="fu">tbl</span>(.x) <span class="sc">|&gt;</span></span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>      <span class="fu">filter</span>(Gene <span class="sc">==</span> .y) <span class="sc">|&gt;</span> </span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>      <span class="fu">collect</span>() </span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>  })</span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>first10_expression <span class="sc">|&gt;</span></span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Code, Name, Gene) <span class="sc">|&gt;</span></span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">Mean_expression =</span> <span class="fu">mean</span>(Expression, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>Name) <span class="sc">|&gt;</span></span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(<span class="at">names_from =</span> Code, <span class="at">values_from =</span> Mean_expression) <span class="sc">|&gt;</span> </span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>`summarise()` has grouped output by 'Code', 'Name'. You can override using the
+`.groups` argument.</code></pre>
+</div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped">
+<colgroup>
+<col style="width: 6%">
+<col style="width: 9%">
+<col style="width: 8%">
+<col style="width: 9%">
+<col style="width: 9%">
+<col style="width: 7%">
+<col style="width: 10%">
+<col style="width: 9%">
+<col style="width: 8%">
+<col style="width: 10%">
+<col style="width: 10%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Gene</th>
+<th style="text-align: right;">BLCA</th>
+<th style="text-align: right;">BRCA</th>
+<th style="text-align: right;">COAD</th>
+<th style="text-align: right;">HNSC</th>
+<th style="text-align: right;">KICH</th>
+<th style="text-align: right;">KIRC</th>
+<th style="text-align: right;">KIRP</th>
+<th style="text-align: right;">LIHC</th>
+<th style="text-align: right;">LUAD</th>
+<th style="text-align: right;">LUSC</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">A2M</td>
+<td style="text-align: right;">57267.0263</td>
+<td style="text-align: right;">68558.106</td>
+<td style="text-align: right;">22355.3537</td>
+<td style="text-align: right;">17349.6279</td>
+<td style="text-align: right;">47226.44</td>
+<td style="text-align: right;">105544.6389</td>
+<td style="text-align: right;">45111.5000</td>
+<td style="text-align: right;">194042.75</td>
+<td style="text-align: right;">110627.7672</td>
+<td style="text-align: right;">203871.9216</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">A4GALT</td>
+<td style="text-align: right;">2678.6316</td>
+<td style="text-align: right;">1025.642</td>
+<td style="text-align: right;">501.7561</td>
+<td style="text-align: right;">4497.8256</td>
+<td style="text-align: right;">2252.16</td>
+<td style="text-align: right;">3062.1389</td>
+<td style="text-align: right;">3818.3125</td>
+<td style="text-align: right;">296.99</td>
+<td style="text-align: right;">874.1466</td>
+<td style="text-align: right;">2800.4608</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">AAAS</td>
+<td style="text-align: right;">1861.2632</td>
+<td style="text-align: right;">2041.389</td>
+<td style="text-align: right;">1672.0732</td>
+<td style="text-align: right;">1840.8605</td>
+<td style="text-align: right;">2434.46</td>
+<td style="text-align: right;">1965.1528</td>
+<td style="text-align: right;">2546.4688</td>
+<td style="text-align: right;">1386.84</td>
+<td style="text-align: right;">1210.3190</td>
+<td style="text-align: right;">2436.2647</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">AACS</td>
+<td style="text-align: right;">1490.2632</td>
+<td style="text-align: right;">4077.058</td>
+<td style="text-align: right;">2165.4512</td>
+<td style="text-align: right;">3847.2558</td>
+<td style="text-align: right;">2873.78</td>
+<td style="text-align: right;">2244.6736</td>
+<td style="text-align: right;">2900.7031</td>
+<td style="text-align: right;">641.34</td>
+<td style="text-align: right;">1411.3707</td>
+<td style="text-align: right;">3077.3627</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">AAGAB</td>
+<td style="text-align: right;">2837.8158</td>
+<td style="text-align: right;">4302.261</td>
+<td style="text-align: right;">2493.8415</td>
+<td style="text-align: right;">3040.1860</td>
+<td style="text-align: right;">3936.28</td>
+<td style="text-align: right;">2853.4931</td>
+<td style="text-align: right;">3077.8750</td>
+<td style="text-align: right;">1123.25</td>
+<td style="text-align: right;">1850.7241</td>
+<td style="text-align: right;">3421.1863</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">AAK1</td>
+<td style="text-align: right;">2573.9211</td>
+<td style="text-align: right;">3377.367</td>
+<td style="text-align: right;">1963.0000</td>
+<td style="text-align: right;">2966.4419</td>
+<td style="text-align: right;">3967.54</td>
+<td style="text-align: right;">4767.8611</td>
+<td style="text-align: right;">5721.2500</td>
+<td style="text-align: right;">1073.72</td>
+<td style="text-align: right;">1971.2759</td>
+<td style="text-align: right;">3910.7255</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">AAMP</td>
+<td style="text-align: right;">6706.4211</td>
+<td style="text-align: right;">6367.159</td>
+<td style="text-align: right;">6560.5854</td>
+<td style="text-align: right;">6838.5233</td>
+<td style="text-align: right;">6477.12</td>
+<td style="text-align: right;">7534.9861</td>
+<td style="text-align: right;">8180.0625</td>
+<td style="text-align: right;">4635.35</td>
+<td style="text-align: right;">4237.8707</td>
+<td style="text-align: right;">7354.8235</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">AARS2</td>
+<td style="text-align: right;">1134.2105</td>
+<td style="text-align: right;">1338.062</td>
+<td style="text-align: right;">1075.9634</td>
+<td style="text-align: right;">1363.7442</td>
+<td style="text-align: right;">1505.32</td>
+<td style="text-align: right;">1589.5764</td>
+<td style="text-align: right;">1974.2969</td>
+<td style="text-align: right;">946.44</td>
+<td style="text-align: right;">882.6638</td>
+<td style="text-align: right;">1504.6471</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">AARSD1</td>
+<td style="text-align: right;">1492.5526</td>
+<td style="text-align: right;">1311.235</td>
+<td style="text-align: right;">985.2805</td>
+<td style="text-align: right;">1373.7093</td>
+<td style="text-align: right;">1132.40</td>
+<td style="text-align: right;">1395.6736</td>
+<td style="text-align: right;">1562.4531</td>
+<td style="text-align: right;">1036.54</td>
+<td style="text-align: right;">772.1810</td>
+<td style="text-align: right;">1298.8039</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">AASDH</td>
+<td style="text-align: right;">555.0789</td>
+<td style="text-align: right;">1149.500</td>
+<td style="text-align: right;">426.2683</td>
+<td style="text-align: right;">612.7907</td>
+<td style="text-align: right;">919.10</td>
+<td style="text-align: right;">906.7986</td>
+<td style="text-align: right;">768.1875</td>
+<td style="text-align: right;">349.29</td>
+<td style="text-align: right;">508.2759</td>
+<td style="text-align: right;">840.0196</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+</section>
+<section id="clean-up" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="clean-up"><span class="header-section-number">7</span> Clean up</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>DBI<span class="sc">::</span><span class="fu">dbDisconnect</span>(griddb)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] TRUE</code></pre>
+</div>
+</div>
+</section>
+<section id="conclusion" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="conclusion"><span class="header-section-number">8</span> Conclusion</h2>
+<p>In this vignette, we saw how we can use <code>GridDB</code> database from <code>R</code>. We ingested one million rows of gene expression data in ten tables in about 1 hour and then queried the data seamlessly using familiar tools like <code>DBI</code> and <code>dplyr</code>.</p>
+</section>
+<section id="appendix" class="level2" data-number="9">
+<h2 data-number="9" class="anchored" data-anchor-id="appendix"><span class="header-section-number">9</span> Appendix</h2>
+<p><code>R</code> / <code>Bioconductor</code> code used to download and preprocess the gene expression data.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This has a lot of dependencies and can take a few minutes to install</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="co"># BiocManager::install("GSEABenchmarkeR")</span></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(GSEABenchmarkeR)</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>tcga <span class="ot">&lt;-</span> <span class="fu">loadEData</span>(<span class="st">"tcga"</span>, <span class="at">nr.datasets =</span> <span class="dv">10</span>)</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>cancer_abbreviations <span class="ot">&lt;-</span> <span class="fu">names</span>(tcga)</span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>cancer_names <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"BLCA"</span> <span class="ot">=</span> <span class="st">"Bladder Urothelial Carcinoma"</span>,</span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"BRCA"</span> <span class="ot">=</span> <span class="st">"Breast Invasive Carcinoma"</span>,</span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"COAD"</span> <span class="ot">=</span> <span class="st">"Colon Adenocarcinoma"</span>,</span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"HNSC"</span> <span class="ot">=</span> <span class="st">"Head and Neck Squamous Cell Carcinoma"</span>,</span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"KICH"</span> <span class="ot">=</span> <span class="st">"Kidney Chromophobe"</span>,</span>
+<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"KIRC"</span> <span class="ot">=</span> <span class="st">"Kidney Renal Clear Cell Carcinoma"</span>,</span>
+<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"KIRP"</span> <span class="ot">=</span> <span class="st">"Kidney Renal Papillary Cell Carcinoma"</span>,</span>
+<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"LIHC"</span> <span class="ot">=</span> <span class="st">"Liver Hepatocellular Carcinoma"</span>,</span>
+<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"LUAD"</span> <span class="ot">=</span> <span class="st">"Lung Adenocarcinoma"</span>,</span>
+<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"LUSC"</span> <span class="ot">=</span> <span class="st">"Lung Squamous Cell Carcinoma"</span>)</span>
+<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a>expressions <span class="ot">&lt;-</span> <span class="fu">lapply</span>(<span class="fu">seq_along</span>(tcga), <span class="cf">function</span>(i) {</span>
+<span id="cb24-20"><a href="#cb24-20" aria-hidden="true" tabindex="-1"></a>  tcga[[i]]<span class="sc">@</span>assays<span class="sc">@</span>data<span class="sc">@</span>listData <span class="sc">|&gt;</span> </span>
+<span id="cb24-21"><a href="#cb24-21" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as.data.frame</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb24-22"><a href="#cb24-22" aria-hidden="true" tabindex="-1"></a>    tibble<span class="sc">::</span><span class="fu">rownames_to_column</span>(<span class="at">var =</span> <span class="st">"Gene"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb24-23"><a href="#cb24-23" aria-hidden="true" tabindex="-1"></a>    tidyr<span class="sc">::</span><span class="fu">pivot_longer</span>(<span class="at">cols =</span> <span class="sc">-</span>Gene, <span class="at">names_to =</span> <span class="st">"Sample"</span>, <span class="at">values_to =</span> <span class="st">"Expression"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb24-24"><a href="#cb24-24" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">cancer =</span> cancer_abbreviations[[i]], <span class="at">cancer_name =</span> cancer_names[[i]])</span>
+<span id="cb24-25"><a href="#cb24-25" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb24-26"><a href="#cb24-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-27"><a href="#cb24-27" aria-hidden="true" tabindex="-1"></a>qs<span class="sc">::</span><span class="fu">qsave</span>(expressions, <span class="st">"expressions.qs"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="session-info" class="level2" data-number="10">
+<h2 data-number="10" class="anchored" data-anchor-id="session-info"><span class="header-section-number">10</span> Session info</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sessionInfo</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>R version 4.2.2 Patched (2022-11-10 r83330)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Ubuntu 20.04.5 LTS
+
+Matrix products: default
+BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3
+LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/liblapack.so.3
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8          LC_NUMERIC=C                 
+ [3] LC_TIME=es_CR.UTF-8           LC_COLLATE=en_US.UTF-8       
+ [5] LC_MONETARY=es_CR.UTF-8       LC_MESSAGES=en_US.UTF-8      
+ [7] LC_PAPER=es_CR.UTF-8          LC_NAME=es_CR.UTF-8          
+ [9] LC_ADDRESS=es_CR.UTF-8        LC_TELEPHONE=es_CR.UTF-8     
+[11] LC_MEASUREMENT=es_CR.UTF-8    LC_IDENTIFICATION=es_CR.UTF-8
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] qs_0.25.4    purrr_1.0.1  tidyr_1.2.1  dplyr_1.0.10 RJDBC_0.2-10
+[6] rJava_1.0-6  DBI_1.1.3   
+
+loaded via a namespace (and not attached):
+ [1] Rcpp_1.0.10         dbplyr_2.3.0        highr_0.9          
+ [4] compiler_4.2.2      pillar_1.8.1        tools_4.2.2        
+ [7] digest_0.6.30       jsonlite_1.8.3      evaluate_0.18      
+[10] lifecycle_1.0.3     tibble_3.1.8        pkgconfig_2.0.3    
+[13] rlang_1.0.6         cli_3.6.0           rstudioapi_0.14    
+[16] yaml_2.3.6          xfun_0.34           fastmap_1.1.0      
+[19] withr_2.5.0         stringr_1.4.1       roxygen2_7.2.2     
+[22] xml2_1.3.3          knitr_1.40          desc_1.4.2         
+[25] generics_0.1.3      vctrs_0.5.0         htmlwidgets_1.6.1  
+[28] attachment_0.3.0    rprojroot_2.0.3     tidyselect_1.2.0   
+[31] RApiSerialize_0.1.2 glue_1.6.2          R6_2.5.1           
+[34] fansi_1.0.3         rmarkdown_2.18      blob_1.2.3         
+[37] magrittr_2.0.3      ellipsis_0.3.2      htmltools_0.5.4    
+[40] assertthat_0.2.1    stringfish_0.15.7   utf8_1.2.2         
+[43] stringi_1.7.12      RcppParallel_5.1.6 </code></pre>
+</div>
+</div>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    target: function(trigger) {
+      return trigger.previousElementSibling;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>

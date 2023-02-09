@@ -1,0 +1,2 @@
+# griddb-blog
+blogs
